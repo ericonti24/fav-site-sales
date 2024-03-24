@@ -1,51 +1,99 @@
 'use client'
-import { useEffect, useState } from 'react';
-import { useAuthState } from 'react-firebase-hooks/auth'
-import { auth, app } from '@/app/firebase/config'
+import { useState } from 'react';
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from '@/app/firebase/config';
 import { useRouter } from 'next/navigation';
-import { signOut, getAuth, onAuthStateChanged } from 'firebase/auth';
+import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
+import { app } from './firebase/config';
 
-export default function Home() {
-  const [user, setUser] = useState(null)
+const Home = () => {
+
   const router = useRouter();
-  const auth = getAuth()
+  const [error, setError] = useState("")
+  const [userCredentials, setUserCredentials] = useState({})
 
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      if (user) {
-        setUser(user)
-      } else {
-        router.push('./sigh-in')
-      }
-    })
-    return () => unsubscribe()
-  }, [auth, router])
+  function handleCredentials(e) {
+    setUserCredentials({...userCredentials, [e.target.name]: e.target.value})
+  }
+  
+  function handleSignIn(e) {
+    e.preventDefault()
+    setError("")
+    signInWithEmailAndPassword(auth, userCredentials.email, userCredentials.password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        sessionStorage.setItem('user', true);
+        router.push('/sites');
+        console.log(userCredential.user);
+      })
+      .catch((error) => {
+        setError(error.message)
+    });
+  }
+   
 
-  const handleSignOut = async () => {
+  const signInWithGoogle = async () => {
+    const auth = getAuth(app);
+    const provider = new GoogleAuthProvider();
     try {
-      await signOut(auth)
-      router.push('/sign-in')
+      await signInWithPopup(auth, provider);
+      router.push('/sites');
     } catch (error) {
-      console.error(error.message)
+      console.error('Google sign-in error:', error.message);
     }
-  }
-
-  console.log({user})
-
-  if (!user) {
-    return null; 
-  }
+  };
 
   return (
-    <>
-      <header className="bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-        <div className="max-w-5xl mx-auto flex justify-between items-center px-4 lg:px-0">
-          <h1 className="text-2xl text-gray-800 dark:text-white">Favorite Site Sales</h1>
-          <button onClick={handleSignOut} className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500">Log out</button>
-        </div>
-      </header>
-      <div>{user.displayName || user.email}</div>
-    </>
-  )
-}
+    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
+      <h1 className="text-white text-4xl mb-8">Favorite Site Sales</h1>
+      <div className="bg-gray-800 p-10 rounded-lg shadow-xl w-96">
+        <h2 className="text-white text-2xl mb-5">Sign In</h2>
+        <input
+          type="email"
+          placeholder="Email"
+          name='email'
+          onChange={(e) => {handleCredentials(e)}}
+          className="w-full p-3 mb-4 bg-gray-700 rounded outline-none text-white placeholder-gray-500"
+        />
+        <input
+          type="password"
+          name='password'
+          placeholder="Password"
+          onChange={(e) => {handleCredentials(e)}}
+          className="w-full p-3 mb-4 bg-gray-700 rounded outline-none text-white placeholder-gray-400"
+        />
+        {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+        <button
+          onClick={(e) => {handleSignIn(e)}}
+          className="w-full p-3 bg-green-600 rounded text-white hover:bg-green-500"
+        >
+          Sign In
+        </button>
+        <p className="text-white text-center mt-4">
+          Don't have an account?{' '}
+          <a href="/sign-up" className="text-indigo-400">
+            Sign Up
+          </a>
+        </p>
+        <p className="text-white text-center mt-4">
+          Forgot Password?{' '}
+          <a href="/forgot-password" className="text-indigo-400">
+            Reset Password
+          </a>
+        </p>
+        <button
+          onClick={signInWithGoogle}
+          className="w-full p-3 bg-blue-600 rounded text-white hover:bg-blue-500 mt-4"
+        >
+          Sign in with Google
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+
+
 

@@ -1,50 +1,38 @@
 'use client'
 import { useState } from 'react';
-import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
+// import { useSignInWithEmailAndPassword } from 'react-firebase-hooks/auth';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/app/firebase/config';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
-import { getAuth } from 'firebase/auth';
 import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth';
+import { getAuth } from 'firebase/auth';
 import { app } from '../firebase/config';
 
 const SignIn = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
+
   const router = useRouter();
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("")
+  const [userCredentials, setUserCredentials] = useState({})
 
-  const validateEmail = (email) => {
-    const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return regex.test(email);
-  };
-
-  const validatePassword = (password) => {
-    return password.trim() !== '';
-  };
-
-  const handleSignIn = async () => {
-    if (!validateEmail(email)) {
-      setError('Please enter a valid email');
-      return;
-    }
-    if (!validatePassword(password)) {
-      setError('Please enter a password');
-      return;
-    }
-    try {
-      const res = await signInWithEmailAndPassword(email, password);
-      console.log({ res });
-      sessionStorage.setItem('user', true);
-      setEmail('');
-      setPassword('');
-      router.push('/');
-    } catch (e) {
-      console.error(e);
-    }
-  };
+  function handleCredentials(e) {
+    setUserCredentials({...userCredentials, [e.target.name]: e.target.value})
+  }
+  
+  function handleSignIn(e) {
+    e.preventDefault()
+    setError("")
+    signInWithEmailAndPassword(auth, userCredentials.email, userCredentials.password)
+      .then((userCredential) => {
+        const user = userCredential.user;
+        sessionStorage.setItem('user', true);
+        router.push('/');
+        console.log(userCredential.user);
+      })
+      .catch((error) => {
+        setError(error.message)
+    });
+  }
+   
 
   const signInWithGoogle = async () => {
     const auth = getAuth(app);
@@ -53,7 +41,7 @@ const SignIn = () => {
       await signInWithPopup(auth, provider);
       router.push('/');
     } catch (error) {
-      console.error(error.message);
+      console.error('Google sign-in error:', error.message);
     }
   };
 
@@ -65,21 +53,21 @@ const SignIn = () => {
         <input
           type="email"
           placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          name='email'
+          onChange={(e) => {handleCredentials(e)}}
           className="w-full p-3 mb-4 bg-gray-700 rounded outline-none text-white placeholder-gray-500"
         />
         <input
           type="password"
+          name='password'
           placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 mb-4 bg-gray-700 rounded outline-none text-white placeholder-gray-500"
+          onChange={(e) => {handleCredentials(e)}}
+          className="w-full p-3 mb-4 bg-gray-700 rounded outline-none text-white placeholder-gray-400"
         />
         {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
         <button
-          onClick={handleSignIn}
-          className="w-full p-3 bg-indigo-600 rounded text-white hover:bg-indigo-500"
+          onClick={(e) => {handleSignIn(e)}}
+          className="w-full p-3 bg-green-600 rounded text-white hover:bg-green-500"
         >
           Sign In
         </button>
@@ -97,7 +85,7 @@ const SignIn = () => {
         </p>
         <button
           onClick={signInWithGoogle}
-          className="w-full p-3 bg-red-600 rounded text-white hover:bg-red-500 mt-4"
+          className="w-full p-3 bg-blue-600 rounded text-white hover:bg-blue-500 mt-4"
         >
           Sign in with Google
         </button>

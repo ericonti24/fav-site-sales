@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { sendPasswordResetEmail } from 'firebase/auth';
 import { getAuth } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
+import {app} from '../firebase/config'
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState('');
@@ -10,7 +11,7 @@ const ForgotPassword = () => {
   const [isValidEmail, setIsValidEmail] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
-  const auth = getAuth();
+  const auth = getAuth(app);
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -62,7 +63,7 @@ const ForgotPassword = () => {
             Submit
             </button>
 
-            <p className="text-white text-center mt-4">Already have an account? <a href="/sign-in" className="text-indigo-400">Sign In</a></p>
+            <p className="text-white text-center mt-4">Already have an account? <a href="/" className="text-indigo-400">Sign In</a></p>
         </div>
         {toastMessage && (
           <div className="fixed bottom-0 right-0 mb-4 mr-4 bg-gray-800 text-white py-2 px-4 rounded">
