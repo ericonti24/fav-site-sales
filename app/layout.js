@@ -30,19 +30,4 @@ export default function RootLayout({ children }) {
   );
 }
 
-// pages/_app.js
-// import { useRouter } from 'next/navigation';
-// import ProtectedRoute from '@/app/components/ProtectedRoute';
-
-
-// function MyApp({ Component, pageProps }) {
-//   const router = useRouter();
-
-//   // Optional: Add any global useEffect here that you want to run on every page load
-
-//   return <ProtectedRoute component={Component} pageProps={pageProps} router={router} />;
-// }
-
-// export default MyApp;
-
 
