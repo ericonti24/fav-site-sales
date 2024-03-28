@@ -47,6 +47,9 @@ const Home = () => {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gray-900">
       <h1 className="text-white text-4xl mb-8">Favorite Site Sales</h1>
+      <p className='text-center'>Have a favorite shopping site that has sales?</p>
+      <p className='text-center'>Now you can have quicker access to that page.</p>
+      <p className='text-center mb-8'>Save and view. </p>
       <div className="bg-gray-800 p-10 rounded-lg shadow-xl w-96">
         <h2 className="text-white text-2xl mb-5">Sign In</h2>
         <input

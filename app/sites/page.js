@@ -6,6 +6,7 @@ import { auth, firestore, storage } from '@/app/firebase/config';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import ProtectedRoute from '../components/ProtectedRoute'
+import { v4 as uuidv4 } from 'uuid';
 
 const Sites = () => {
   const router = useRouter();
@@ -16,11 +17,14 @@ const Sites = () => {
   const [url, setUrl] = useState('');
   const [sites, setSites] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [showDropdowns, setShowDropdowns] = useState(Array(sites.length).fill(false));
+  const [folderId, setFolderId] = useState(uuidv4());
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(user => {
       if (user) {
         setCurrentUser(user);
+        console.log('User ID:', user.uid);
         fetchSites(user.uid);
       } else {
         console.log('User not signed in. Redirecting...');
@@ -33,21 +37,59 @@ const Sites = () => {
 
   const fetchSites = async (userId) => {
     try {
+      console.log("Verify User ID:", userId);
       if (!userId) {
         console.error('User ID is undefined');
         return;
       }
-      const querySnapshot = await getDocs(query(collection(firestore, 'sites'), where('userId', '==', userId)));
+  
+      const sitesRef = collection(firestore, 'sites');
+      const querySnapshot = await getDocs(query(sitesRef, where('userId', '==', userId)));
       const fetchedSites = [];
+  
       querySnapshot.forEach(doc => {
         fetchedSites.push({ id: doc.id, ...doc.data() });
+        console.log("Fetched site:", { id: doc.id, ...doc.data() });
       });
+  
       setSites(fetchedSites);
     } catch (error) {
       console.error('Error fetching sites:', error);
     }
   };
-
+  
+  const handleAddSite = async () => {
+    try {
+      if (!currentUser) {
+        console.error('Current user is undefined');
+        return;
+      }
+  
+      // Save site data including userId in Firestore
+      const siteData = {
+        imageUrl: imageUrl,
+        siteName: siteName,
+        url: url,
+        userId: currentUser.uid // Set userId field correctly
+      };
+      const docRef = await addDoc(collection(firestore, 'sites'), siteData);
+  
+      // Clear form fields and state
+      setSiteName('');
+      setUrl('');
+      setImageFile(null);
+      setImageUrl('');
+      setShowModal(false);
+  
+      // Fetch updated sites
+      fetchSites(currentUser.uid);
+    } catch (error) {
+      console.error('Error uploading site:', error);
+    }
+  };
+  
+  
+  
 
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
@@ -68,45 +110,6 @@ const Sites = () => {
     setUrl(e.target.value);
   };
 
-  const handleAddSite = async () => {
-    try {
-      // Checks if currentUser is defined before accessing its properties
-      if (!currentUser) {
-        console.error('Current user is undefined');
-        return;
-      }
-
-      // Upload image to Firebase Storage
-      const storageRef = ref(storage, `images/${imageFile.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, imageFile);
-      const snapshot = await uploadTask;
-
-      // Get download URL of the uploaded image
-      const downloadURL = await getDownloadURL(snapshot.ref);
-
-      // Save site data including download URL in Firestore
-      const siteData = {
-        siteName: siteName,
-        url: url,
-        imageUrl: downloadURL, // Save download URL
-        userId: currentUser.uid
-      };
-      await addDoc(collection(firestore, 'sites'), siteData);
-
-      // Clear form fields and state
-      setSiteName('');
-      setUrl('');
-      setImageFile(null);
-      setImageUrl('');
-      setShowModal(false);
-
-      // Fetch updated sites
-      fetchSites(currentUser.uid); 
-    } catch (error) {
-      console.error('Error uploading site:', error);
-    }
-  };
-
   const handleSignOut = async () => {
     try {
       await signOut(auth);
@@ -125,6 +128,14 @@ const Sites = () => {
     }
   };
 
+  const toggleDropdown = (index) => {
+    setShowDropdowns((prevState) => {
+      const newState = [...prevState];
+      newState[index] = !newState[index];
+      return newState;
+    });
+  };
+
   return (
     <div>
       <nav className="bg-gray-800 py-4 px-6 flex justify-between items-center">
@@ -135,27 +146,175 @@ const Sites = () => {
         </div>
       </nav>
       <div className="container mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold mb-4">Sites</h1>
-    
-        <button onClick={() => setShowModal(true)} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Add a new site</button>
-    
-        <div className="mt-8">
-          <h2 className="text-xl font-semibold mb-2">Uploaded Sites:</h2>
-          <ul>
-            {sites.map((site, index) => (
-              <li key={index} className="mb-2">
-                <div>
-                  {site.imageUrl && <img src={site.imageUrl} alt="Uploaded" style={{ maxWidth: '100%', maxHeight: '200px' }} />}
-                  <p className="font-semibold">{site.siteName}</p>
-                  <a href={site.url} target="_blank" rel="noopener noreferrer">{site.url}</a>
-                  <button onClick={() => handleRemoveSite(site.id)} className="bg-red-500 text-white px-2 py-1 rounded ml-2">Remove</button>
-                </div>
-              </li>
-            ))}
-          </ul>
+        <div className='text-center'>
+          <h1 className="text-2xl font-bold mb-4">Sites</h1>
+          <p className='mb-4'>Save your favorite site that has sales here. </p>
+          <p className='mb-4'> Click Add a new site to add the site name, photo of your choosing and the url of the sales page of your favorite site.</p>
+          <p className='mb-8'>Then click on your uploaded url to view and save on your favorite site!</p>
+          <button onClick={() => setShowModal(true)} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-8">Add a new site</button>
         </div>
+        {/* <div className="w-full max-w-md">
+      {sites.map((site, index) => (
+        <div key={index} className="bg-white border border-gray-200 rounded-lg shadow mb-8">
+          <div className="flex justify-end px-4 pt-2">
+            <div className="relative">
+              <button
+                id={`dropdownButton${index}`}
+                className="inline-block text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-1.5"
+                type="button"
+                onClick={() => toggleDropdown(index)}
+              >
+                <span className="sr-only">Open dropdown</span>
+                <svg
+                  className="w-5 h-5"
+                  aria-hidden="true"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="currentColor"
+                  viewBox="0 0 16 3"
+                >
+                  <path d="M2 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6.041 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM14 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
+                </svg>
+              </button>
+              <div
+                id={`dropdown${index}`}
+                className={`absolute right-0 top-full ${
+                  showDropdowns[index] ? "block" : "hidden"
+                } z-10 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700`}
+              >
+                <ul className="py-2" aria-labelledby={`dropdownButton${index}`}>
+                  <li>
+                    <a
+                      href="#"
+                      className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                    >
+                      Edit
+                    </a>
+                  </li>
+                  <li>
+                    <button
+                      onClick={() => handleRemoveSite(site.id)}
+                      className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                    >
+                      Delete
+                    </button>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center space-x-6 px-2 py-1 pb-6">
+            {site.imageUrl && (
+              <img
+                className="w-27 h-40 rounded-full shadow-lg"
+                src={site.imageUrl}
+                alt="Site image"
+              />
+            )}
+            <div className="flex flex-col flex-grow">
+              <h5 className="mb-1 text-xl font-medium text-gray-900 dark:text-black">
+                {site.siteName}
+              </h5>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {site.role}
+              </span>
+              <div className="flex mt-4 md:mt-6">
+                <a
+                  href={site.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                >
+                  Go to Sales
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div> */}
+      <div className="w-full max-w-md">
+        {sites.map((site, index) => (
+          <div key={index} className="bg-white border border-gray-200 rounded-lg shadow mb-8">
+            {/* Your dropdown and site information */}
+            <div className="flex justify-end px-4 pt-2">
+              <div className="relative">
+                <button
+                  id={`dropdownButton${index}`}
+                  className="inline-block text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 focus:ring-4 focus:outline-none focus:ring-gray-200 dark:focus:ring-gray-700 rounded-lg text-sm p-1.5"
+                  type="button"
+                  onClick={() => toggleDropdown(index)}
+                >
+                  <span className="sr-only">Open dropdown</span>
+                  <svg
+                    className="w-5 h-5"
+                    aria-hidden="true"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="currentColor"
+                    viewBox="0 0 16 3"
+                  >
+                    <path d="M2 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Zm6.041 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3ZM14 0a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3Z" />
+                  </svg>
+                </button>
+                {/* Dropdown menu */}
+                <div
+                  id={`dropdown${index}`}
+                  className={`absolute right-0 top-full ${
+                    showDropdowns[index] ? "block" : "hidden"
+                  } z-10 text-base list-none bg-white divide-y divide-gray-100 rounded-lg shadow w-44 dark:bg-gray-700`}
+                >
+                  <ul className="py-2" aria-labelledby={`dropdownButton${index}`}>
+                    <li>
+                      <a
+                        href="#"
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                      >
+                        Edit
+                      </a>
+                    </li>
+                    <li>
+                      <button
+                        onClick={() => handleRemoveSite(site.id)}
+                        className="block px-4 py-2 text-sm text-red-600 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
+                      >
+                        Delete
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            {/* Site information */}
+            <div className="flex items-center space-x-6 px-2 py-1 pb-6">
+              {site.imageUrl && (
+                <img
+                  className="w-40 h-22 rounded-lg object-cover object-center shadow-lg"
+                  src={site.imageUrl}
+                  alt="Site image"
+                />
+              )}
+              <div className="flex flex-col flex-grow">
+                <h5 className="mb-1 text-xl font-medium text-gray-900 dark:text-black">
+                  {site.siteName}
+                </h5>
+                <span className="text-sm text-gray-500 dark:text-gray-400">
+                  {site.role}
+                </span>
+                <div className="flex mt-4 md:mt-6">
+                  <a
+                    href={site.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-4 py-2 text-sm font-medium text-center text-white bg-blue-700 rounded-lg hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800"
+                  >
+                    Go to Sales
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
-      
+      </div>
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center bg-gray-500 bg-opacity-75">
           <div className="bg-white p-6 rounded-lg">
@@ -169,7 +328,9 @@ const Sites = () => {
               <input type="file" id="image" onChange={handleImageUpload} />
               {imageUrl && (
                 <div className="flex items-center mt-2">
-                  <p className="text-gray-500 mr-2">{imageFile.name}</p>
+                  {imageFile && imageFile.name &&
+                    <p className="text-gray-500 mr-2">{imageFile.name}</p>
+                  }
                   <button onClick={handleRemoveImage} className="bg-red-600 text-black px-1 py-1 rounded hover:bg-red-700">Remove</button>
                 </div>
               )}
@@ -190,8 +351,3 @@ const Sites = () => {
 };
 
 export default ProtectedRoute(Sites);
-
-
-
-
-
