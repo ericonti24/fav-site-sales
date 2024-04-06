@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
 import { auth, firestore, storage } from '@/app/firebase/config';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import ProtectedRoute from '../components/ProtectedRoute'
 import { v4 as uuidv4 } from 'uuid';
 
@@ -44,15 +44,22 @@ const Sites = () => {
         return;
       }
   
-      const sitesRef = collection(firestore, 'sites');
-      const querySnapshot = await getDocs(query(sitesRef, where('userId', '==', userId)));
+      // Construct reference to the user's folder
+      const userSitesCollectionRef = collection(firestore, 'users', userId, 'sites');
+  
+      // Get all documents from the user's "sites" collection
+      const querySnapshot = await getDocs(userSitesCollectionRef);
+  
+      // Initialize an array to hold fetched sites
       const fetchedSites = [];
   
+      // Loop through each document in the query snapshot
       querySnapshot.forEach(doc => {
         fetchedSites.push({ id: doc.id, ...doc.data() });
         console.log("Fetched site:", { id: doc.id, ...doc.data() });
       });
   
+      // Set the state variable to the fetched sites
       setSites(fetchedSites);
     } catch (error) {
       console.error('Error fetching sites:', error);
@@ -65,39 +72,64 @@ const Sites = () => {
         console.error('Current user is undefined');
         return;
       }
-
+  
       if (!siteName || !url || !imageFile) {
         console.error('All fields are required');
-        // alert('All fields are required');
         return;
       }
   
-      // Save site data including userId in Firestore
-      const siteData = {
-        imageUrl: imageUrl,
-        siteName: siteName,
-        url: url,
-        userId: currentUser.uid // Set userId field correctly
-      };
-      const docRef = await addDoc(collection(firestore, 'sites'), siteData);
+      // Upload image to Firebase Storage
+      const storageRef = ref(storage, `images/${currentUser.uid}/${imageFile.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, imageFile);
   
-      // Clear form fields and state
-      setSiteName('');
-      setUrl('');
-      setImageFile(null);
-      setImageUrl('');
-      setShowModal(false);
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          // Progress tracking if needed
+        }, 
+        (error) => {
+          console.error('Error uploading image:', error);
+        }, 
+        () => {
+          // Image uploaded successfully, get the download URL
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            // Save site data including userId and imageUrl in Firestore
+            const siteData = {
+              imageUrl: downloadURL,
+              siteName: siteName,
+              url: url,
+              userId: currentUser.uid
+            };
   
-      // Fetch updated sites
-      fetchSites(currentUser.uid);
+            // Construct reference to the user's folder
+            const userFolderRef = collection(firestore, 'users', currentUser.uid, 'sites');
+  
+            // Add site data to Firestore
+            addDoc(userFolderRef, siteData)
+              .then((docRef) => {
+                console.log('Document written with ID:', docRef.id);
+                // Clear form fields and state
+                setSiteName('');
+                setUrl('');
+                setImageFile(null);
+                setImageUrl('');
+                setShowModal(false);
+                // Fetch updated sites
+                fetchSites(currentUser.uid);
+              })
+              .catch((error) => {
+                console.error('Error adding document:', error);
+              });
+          }).catch((error) => {
+            console.error('Error getting download URL:', error);
+          });
+        }
+      );
     } catch (error) {
       console.error('Error uploading site:', error);
     }
   };
+    
   
-  
-  
-
   const handleImageUpload = (e) => {
     const file = e.target.files[0];
     setImageFile(file);
@@ -125,15 +157,23 @@ const Sites = () => {
       console.error('Error signing out:', error);
     }
   };
-  
-  const handleRemoveSite = async (siteId) => {
+
+  const handleRemoveSite = async (siteId, imageUrl) => {
     try {
+      // Delete the image file from Firebase Storage
+      const imageRef = ref(storage, imageUrl);
+      await deleteObject(imageRef);
+  
+      // Delete the document representing the site from Firestore
       await deleteDoc(doc(firestore, 'sites', siteId));
+  
+      // Update the state to remove the deleted site
       setSites(sites.filter(site => site.id !== siteId));
     } catch (error) {
       console.error('Error removing site:', error);
     }
   };
+  
 
   const toggleDropdown = (index) => {
     setShowDropdowns((prevState) => {
