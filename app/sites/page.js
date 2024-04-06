@@ -6,7 +6,6 @@ import { auth, firestore, storage } from '@/app/firebase/config';
 import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from 'firebase/firestore';
 import { ref, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 import ProtectedRoute from '../components/ProtectedRoute'
-import { v4 as uuidv4 } from 'uuid';
 
 const Sites = () => {
   const router = useRouter();
@@ -18,7 +17,6 @@ const Sites = () => {
   const [sites, setSites] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [showDropdowns, setShowDropdowns] = useState(Array(sites.length).fill(false));
-  const [folderId, setFolderId] = useState(uuidv4());
   const [showError, setShowError] = useState(false);
 
   useEffect(() => {
