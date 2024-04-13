@@ -28,6 +28,7 @@ const Sites = () => {
   const [editedUrl, setEditedUrl] = useState('');
   const [editedImageFile, setEditedImageFile] = useState(null);
   const [editError, setEditError] = useState(false);
+  const [filter, setFilter] = useState('')
 
   const toggleDropdown = (index) => {
     setShowDropdowns((prevState) => {
@@ -72,9 +73,6 @@ const Sites = () => {
       unsubscribe();
     };
   }, [router, showDropdowns]);
-  
-  
-  
 
   const fetchSites = async (userId) => {
     try {
@@ -279,6 +277,8 @@ const Sites = () => {
     }
   };
 
+  const filteredSites = sites.filter((site) => site.siteName.toLowerCase().includes(filter.toLowerCase()))
+
   return (
     <div>
       <nav className="bg-gray-800 py-4 px-6 flex justify-between items-center">
@@ -296,8 +296,19 @@ const Sites = () => {
           <p className='mb-8'>Then click on your uploaded url to view and save on your favorite site!</p>
           <button onClick={() => setShowModal(true)} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mb-8">Add a new site</button>
         </div>
+        {/* Add filter input */}
+        <div className="mb-4">
+          <input
+            type="text"
+            placeholder="Search by site name"
+            className="border border-gray-300 rounded px-3 py-1"
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ color: 'black' }}
+          />
+        </div>
         <div className="w-full max-w-md">
-          {sites.map((site, index) => (
+          {filteredSites.map((site, index) => (
             <Site 
               key={index} 
               index={index}
