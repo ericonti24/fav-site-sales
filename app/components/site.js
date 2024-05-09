@@ -24,6 +24,7 @@ const Site = ({ site, handleRemoveSite, showDropdowns, toggleDropdown, index, op
             </button>
             {/* Dropdown menu */}
             <div
+              key={index}
               id={`dropdown${index}`}
               className={`absolute right-0 top-full ${
                 showDropdowns ? "block" : "hidden"
@@ -33,7 +34,10 @@ const Site = ({ site, handleRemoveSite, showDropdowns, toggleDropdown, index, op
                 <li>
                   <a
                     href="#"
-                    onClick={() => openEditModal(site)}
+                    onClick={() => {
+                      toggleDropdown(index); // Close the dropdown
+                      openEditModal(site); // Open the edit modal
+                    }}
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 dark:text-gray-200 dark:hover:text-white"
                   >
                     Edit

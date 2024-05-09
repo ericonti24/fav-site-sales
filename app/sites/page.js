@@ -33,10 +33,17 @@ const Sites = () => {
   const toggleDropdown = (index) => {
     setShowDropdowns((prevState) => {
       const newState = [...prevState];
-      newState[index] = !newState[index];
+      newState[index] = !newState[index]; // Toggle the state of the clicked dropdown
+      // Close all other dropdowns if they are open
+      newState.forEach((dropdownIsOpen, i) => {
+        if (i !== index && dropdownIsOpen) {
+          newState[i] = false;
+        }
+      });      
       return newState;
     });
   };
+  
 
   useEffect(() => {
     const handleOutsideClick = (event) => {
@@ -279,6 +286,8 @@ const Sites = () => {
 
   const filteredSites = sites.filter((site) => site.siteName.toLowerCase().includes(filter.toLowerCase()))
 
+  const filteredSiteCount = filteredSites.length;
+
   return (
     <div>
       <nav className="bg-gray-800 py-4 px-6 flex justify-between items-center">
@@ -307,6 +316,7 @@ const Sites = () => {
             style={{ color: 'black' }}
           />
         </div>
+        <p className="text-2xl font-bold mb-4">Favorite Sites Added: {filteredSiteCount}</p>
         <div className="w-full max-w-md">
           {filteredSites.map((site, index) => (
             <Site 
